@@ -49,6 +49,27 @@ module Cequel
     #
     # @since 1.2.0
     #
+    # Additionally, `where_` and `where_not_`prefixed scopes are added for boolean typed
+    # columns.
+    #
+    # @example Example model class
+    #   class Post
+    #     key :id, :integer
+    #     column :read, :boolean
+    #     column :approved, :boolean, index: true
+    #   end
+    #
+    # @example Example usage
+    #   # returns a RecordSet scoped to records where :approved is true
+    #   Post.where_approved
+    #
+    #   # returns a RecordSet scoped to records where :read is false
+    #   Post.where_not_read
+    #
+    #   # These scopes are chainable, and using the scope methods where
+    #   # the column is unindexed automatically calls `allow_filtering!`
+    #   Post.find_all_by(id: 0..10).where_not_read.where_approved
+
     module Finders
       private
 
@@ -69,6 +90,7 @@ module Cequel
           def_finder('find_by', [name], '.first')
           def_finder('find_all_by', [name], '.entries')
         end
+        def_bool_scope(name, options[:index]) if type == :boolean
       end
 
       def def_key_finders(method_prefix, scope_operation = '')
@@ -86,6 +108,14 @@ module Cequel
           def #{method_prefix}_#{method_suffix}(#{arg_names})
             where(#{column_filter_expr})#{scope_operation}
           end
+        RUBY
+      end
+
+      def def_bool_scope(name, is_indexed)
+        pre_call = is_indexed ? "self" : "allow_filtering!"
+        singleton_class.module_eval(<<-RUBY, __FILE__, __LINE__+1)
+          def where_#{name}; #{pre_call}.where(#{name}: true); end
+          def where_not_#{name}; #{pre_call}.where(#{name}: false); end
         RUBY
       end
 

@@ -131,6 +131,8 @@ module Cequel
         #   exposes helpers ie. model.open?
         #   exposes values-mapping on a class-level ModelClass.status
         #
+        # @note Using type :boolean exposes the `?` helper also
+        #
         # @note Secondary indexes are not nearly as flexible as primary keys:
         #   you cannot query for multiple values or for ranges of values. You
         #   also cannot combine a secondary index restriction with a primary
@@ -140,6 +142,7 @@ module Cequel
         def column(name, type, options = {})
           def_accessors(name)
           def_enum(name, options[:values]) if type == :enum
+          def_bool_helper(name) if type == :boolean
           set_attribute_default(name, options[:default])
         end
 
@@ -227,6 +230,12 @@ module Cequel
         def def_enum_writer(name, values)
           module_eval <<-RUBY, __FILE__, __LINE__+1
             def #{name}=(value); write_attribute(#{name.inspect}, #{values}[value]); end
+          RUBY
+        end
+
+        def def_bool_helper(name)
+          module_eval <<-RUBY, __FILE__, __LINE__+1
+            def #{name}?; read_attribute(#{name.inspect}); end
           RUBY
         end
 

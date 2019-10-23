@@ -19,6 +19,8 @@ describe Cequel::Record::Finders do
     key :id, :timeuuid, auto: true
     column :title, :text
     column :body, :text
+    column :approved, :boolean
+    column :read, :boolean
     column :author_id, :uuid, index: true
   end
 
@@ -37,7 +39,9 @@ describe Cequel::Record::Finders do
       5.times.map do |i|
         Post.create!(
           blog_subdomain: 'cassandra',
-          author_id: author_ids[i%2]
+          author_id: author_ids[i%2],
+          approved: false,
+          read: true
         )
       end
     end
@@ -46,7 +50,11 @@ describe Cequel::Record::Finders do
   let :postgres_posts do
     cequel.batch do
       5.times.map do |i|
-        Post.create!(blog_subdomain: 'postgres')
+        Post.create!(
+          blog_subdomain: 'postgres',
+          approved: true,
+          read: false
+        )
       end
     end
   end
@@ -184,6 +192,36 @@ describe Cequel::Record::Finders do
       [:find_by_title, :find_all_by_title, :with_title].each do |method|
         expect(Post).to_not respond_to(method)
       end
+    end
+  end
+
+  context 'boolean scope' do
+    it 'should provide scoping methods' do
+      expect(Post).to respond_to(:where_approved)
+      expect(Post).to respond_to(:where_read)
+      expect(Post).to respond_to(:where_not_approved)
+      expect(Post).to respond_to(:where_not_read)
+    end
+
+    RSpec::Matchers.define_negated_matcher :have_records, :be_empty
+    RSpec::Matchers.define_negated_matcher :not_be_approved, :be_approved
+    RSpec::Matchers.define_negated_matcher :not_be_read, :be_read
+
+    it 'should return the scoped results' do
+      posts
+
+      expect(Post.where_approved.all.to_a)
+        .to have_records
+        .and all be_approved
+      expect(Post.where_not_approved.all.to_a)
+        .to have_records
+        .and all not_be_approved
+      expect(Post.where_read.all.to_a)
+        .to have_records
+        .and all be_read
+      expect(Post.where_not_read.all.to_a)
+        .to have_records
+        .and all not_be_read
     end
   end
 end

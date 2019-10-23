@@ -8,6 +8,7 @@ describe Cequel::Record::Properties do
       key :permalink, :text
       column :title, :text
       column :status, :enum, values: { open: 1, closed: 2 }
+      column :read, :boolean
       list :tags, :text
       set :categories, :text
       map :shares, :text, :int
@@ -29,6 +30,17 @@ describe Cequel::Record::Properties do
 
     it 'should have nil key if unset' do
       expect(Post.new.permalink).to be_nil
+    end
+
+    it 'should have query methods for enums' do
+      expect(Post.new).to respond_to(:open?)
+      expect(Post.new).to respond_to(:closed?)
+    end
+
+    it 'should have query methods for booleans' do
+      expect(Post.new).to respond_to(:read?)
+      expect(Post.new { |post| post.read = true }).to be_read
+      expect(Post.new { |post| post.read = false }).not_to be_read
     end
 
     it 'should have enums' do
